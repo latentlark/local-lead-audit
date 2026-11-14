@@ -84,6 +84,26 @@ def lead_from_maps(it: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def timed_get_sync(url: str, verify: bool) -> int | None:
+    """Re-times one homepage download in a worker thread. HTML parsing is CPU bound and blocks the event loop, so an
+    asyncio timer under load also counts time spent parsing other sites. A blocking read in a thread is woken within a
+    few ms (the GIL switch interval), so this measures the website, not how busy the run is. Used only to confirm a
+    homepage that looked slow."""
+    try:
+        with httpx.Client(headers={'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml'}, verify=verify,
+                          follow_redirects=True, timeout=httpx.Timeout(12.0, connect=6.0)) as c:
+            t0 = time.monotonic()
+            with c.stream('GET', url) as r:
+                n = 0
+                for chunk in r.iter_bytes():
+                    n += len(chunk)
+                    if n > MAX_BYTES:
+                        break
+            return int((time.monotonic() - t0) * 1000)
+    except Exception:
+        return None
+
+
 class Fetcher:
     """Plain HTTP. Datacenter proxy only as a fallback for blocked sites on the platform (or if set in input)."""
 
@@ -343,6 +363,12 @@ async def audit_lead(f: Fetcher, lead: dict[str, Any], opts: dict[str, Any]) -> 
                     row['businessName'] = A.site_name(soup, dom)
                 checks.update({'https': home['https'], 'sslInvalid': home['sslInvalid'], 'responseTimeMs': ms,
                                'pageSizeKb': round(len(html.encode('utf-8', 'ignore')) / 1024, 1)})
+                if ms > A.SLOW_MS:
+                    # Confirm a slow-looking homepage with a quiet re-time in a thread (see timed_get_sync).
+                    checks['responseTimeFirstMs'] = ms
+                    again = await asyncio.to_thread(timed_get_sync, final, not home['sslInvalid'])
+                    if again is not None:
+                        checks['responseTimeMs'] = min(ms, again)
                 if home['https'] and not home['sslInvalid']:
                     loc = await f.head_redirect(f'http://{urlparse(final).hostname}/')
                     checks['httpRedirectsToHttps'] = None if loc is None else loc.lower().startswith('https://')
@@ -447,6 +473,17 @@ async def audit_lead(f: Fetcher, lead: dict[str, Any], opts: dict[str, Any]) -> 
     return row, True, site_contact
 
 
+def split_name_site(line: str, name: str | None = None) -> tuple[str | None, str]:
+    """'Business Name | domain.com' (either order). The business name itself may contain '|', so the website is the
+    last part that parses as a URL and everything else is the name."""
+    parts = [x.strip() for x in line.split('|')]
+    idx = next((j for j in range(len(parts) - 1, -1, -1) if ' ' not in parts[j] and A.normalize_url(parts[j])), None)
+    if idx is None:
+        return name, line.strip()
+    rest = ' | '.join(p for k, p in enumerate(parts) if k != idx and p)
+    return (rest or name), parts[idx]
+
+
 async def _input_error(msg: str) -> None:
     """Fixable input problem (or an empty upstream dataset): end SUCCEEDED with one uncharged explanatory row."""
     Actor.log.error(msg)
@@ -492,8 +529,7 @@ async def main() -> None:
         for i, w in enumerate(websites):
             name = names[i] if i < len(names) else None
             if '|' in w:
-                a, b = [x.strip() for x in w.split('|', 1)]
-                name, w = (a, b) if '.' in b else (b, a)
+                name, w = split_name_site(w, name)
             leads.append({'source': 'list', 'businessName': name, 'inputWebsite': w})
         if ds_id:
             Actor.log.info(f'Reading Google Maps dataset {ds_id} ...')

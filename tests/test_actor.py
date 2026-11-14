@@ -62,3 +62,55 @@ def test_blocked_and_maps():
                          'categoryName': 'Pizza restaurant', 'city': 'Austin', 'url': 'https://www.google.com/maps/place/x'})
     assert ld['rating'] == 4.2 and ld['reviewCount'] == 8 and ld['mapsUrl']
     assert dataset_id_from('https://api.apify.com/v2/datasets/AbCdEf12345/items') == 'AbCdEf12345'
+
+
+GOOD = {'https': True, 'sslInvalid': False, 'httpRedirectsToHttps': True, 'mobileViewport': True, 'responseTimeMs': 800,
+        'pageSizeKb': 300, 'titleLength': 50, 'metaDescription': 'x' * 120, 'hasH1': True, 'copyrightYear': A.YEAR,
+        'analytics': ['Google Tag Manager'], 'adPixels': ['Meta Pixel'], 'bookingTools': ['Housecall Pro'], 'hasContactForm': True,
+        'chatWidgets': [], 'hasLocalBusinessSchema': True, 'hasSocialLinks': True, 'flashOrLegacy': False, 'hasEmail': True,
+        'hasClickToCall': True, 'hasReviewsOnSite': True}
+
+
+def test_scoring_v2_bands():
+    # a site that passes every check is an A with score 0
+    assert A.collect_issues(GOOD, 4.9, 300, 'ok') == [] and A.score([]) == (0, 'A')
+    # one small gap stays A, two medium gaps fall to B or worse
+    assert A.score(['NO_SOCIAL_LINKS']) == (4, 'A') and A.score(['NO_AD_PIXEL']) == (6, 'B')
+    assert A.score(['NO_ANALYTICS'])[1] == 'B' and A.score(['NO_ANALYTICS', 'NO_LOCAL_SCHEMA'])[1] == 'C'
+    # no way to convert a visitor is at least a C on its own
+    assert A.score(['NO_LEAD_CAPTURE'])[1] == 'C'
+    assert A.score(['NO_LEAD_CAPTURE', 'NO_ANALYTICS', 'NO_CLICK_TO_CALL'])[1] == 'F'
+    assert A.score(['SITE_DOWN']) == (100, 'F') and A.score(['NO_HTTPS', 'NOT_MOBILE_FRIENDLY', 'NO_LEAD_CAPTURE'])[0] == 80
+    for bound, g in A.GRADE_BANDS:
+        assert A.score_to_grade(bound) == g and A.score_to_grade(bound + 1) != g
+
+
+def test_scoring_v2_new_checks_and_old_rows():
+    c = dict(GOOD, hasClickToCall=False, hasReviewsOnSite=False, responseTimeMs=3000)
+    issues = A.collect_issues(c, None, None, 'ok')
+    assert issues == ['SLOW', 'NO_CLICK_TO_CALL', 'NO_REVIEWS_ON_SITE']
+    # saved rows from scoring v1 have no hasClickToCall / hasReviewsOnSite keys: not flagged
+    old = {k: v for k, v in GOOD.items() if k not in ('hasClickToCall', 'hasReviewsOnSite')}
+    assert A.collect_issues(old, None, None, 'ok') == []
+    assert set(A.POINTS) == set(A.ISSUE_TEXT) and all(k in A.SEVERITY for k in A.POINTS)
+
+
+def test_page_checks_tel_and_reviews():
+    html = ('<html><head><title>Joe Plumbing Austin</title></head><body><h1>Joe</h1>'
+            '<a href="tel:+15125550100">Call</a><section><h2>What our customers say</h2></section></body></html>')
+    c = A.page_checks(html, BeautifulSoup(html, 'lxml'))
+    assert c['hasClickToCall'] and c['hasReviewsOnSite']
+    bare = '<html><head><title>Joe Plumbing Austin</title></head><body><h1>Joe</h1><p>Call 512-555-0100</p></body></html>'
+    c2 = A.page_checks(bare, BeautifulSoup(bare, 'lxml'))
+    assert not c2['hasClickToCall'] and not c2['hasReviewsOnSite']
+    widget = '<html><body><div class="elfsight-app-123"></div><a href="/reviews/">x</a></body></html>'
+    assert A.page_checks(widget, BeautifulSoup(widget, 'lxml'))['hasReviewsOnSite']
+
+
+def test_split_name_site():
+    from src.main import split_name_site
+    assert split_name_site('Joe Pizza | joespizza.com') == ('Joe Pizza', 'joespizza.com')
+    assert split_name_site('joespizza.com | Joe Pizza') == ('Joe Pizza', 'joespizza.com')
+    assert split_name_site('Austin Roofing Company & Water Damage | WDR | https://austinroofingandwaterdamage.com/') == (
+        'Austin Roofing Company & Water Damage | WDR', 'https://austinroofingandwaterdamage.com/')
+    assert split_name_site('no site here | WDR', 'X') == ('X', 'no site here | WDR')

@@ -602,6 +602,16 @@ def find_subpages(soup: BeautifulSoup, base_url: str, limit: int = 3) -> list[st
 _COPY_RX = re.compile(_lower_pattern(r'(?:©|&copy;|&#169;|\(c\)|copyright)[^0-9<]{0,40}((?:19|20)\d{2})(?:\s*(?:-|\u2013|\u2014|&ndash;|&mdash;|to)\s*((?:19|20)\d{2}))?'))
 _DYN_YEAR_RX = re.compile(_lower_pattern(r'(?:©|&copy;|copyright)[^<]{0,60}(?:new Date\(\)\.getFullYear|document\.write|\{\{\s*year|\[year\])'))
 
+# Click-to-call link (tel:) and on-site reviews or testimonials. Cheap substring and regex checks on the homepage.
+_TEL_RX = re.compile(r'href\s*=\s*["\']?\s*tel:')
+REVIEW_WIDGETS = ['elfsight', 'trustindex', 'birdeye', 'podium.com', 'nicejob', 'grade.us', 'reviewsonmywebsite', 'embedsocial',
+                  'sociablekit', 'repuso', 'trustpilot', 'yotpo', 'judge.me', 'reviewwave', 'broadly.com', 'widewail',
+                  'gatherup', 'getfivestars', 'reviews.io', 'shapo.io', 'senja.io', 'google-reviews', 'wprevpro', 'wp-google-reviews',
+                  'richplugins', 'grw-', 'ti-widget', 'yelp.com/biz', 'homeadvisor.com/rated', 'angi.com/companylist']
+_REVIEW_RX = re.compile(r'>\s*(?:(?:customer |client |google |our )?reviews|read (?:our |more )?reviews|what (?:our )?(?:customers|clients|neighbors|homeowners) (?:are saying|say))\s*<'
+                        r'|href\s*=\s*["\'][^"\']*/(?:reviews?|testimonials?)[/"\'?#]')
+
+
 def has_contact_form(hl: str, soup: BeautifulSoup) -> bool:
     """hl = lower-cased html. Same rule page_checks uses; cheap enough to run on subpages."""
     if any(t in hl for t in FORM_TOOLS):
@@ -643,7 +653,11 @@ def page_checks(html: str, soup: BeautifulSoup) -> dict[str, Any]:
                    'FoodEstablishment', 'Physician', 'MedicalClinic', 'RealEstateAgent', 'AccountingService', 'VeterinaryCare',
                    'ExerciseGym', 'SportsActivityLocation', 'LodgingBusiness', 'Hotel', 'CafeOrCoffeeShop', 'Bakery',
                    'Locksmith', 'MovingCompany', 'GeneralContractor', 'HousePainter', 'ChildCare', 'Corporation', 'NailSalon'}
+    has_tel = bool(_TEL_RX.search(hl))
+    has_reviews = (any(t in hl for t in REVIEW_WIDGETS) or 'testimonial' in hl or bool(_REVIEW_RX.search(hl))
+                   or 'AggregateRating' in schema_types or 'Review' in schema_types)
     return {
+        'hasClickToCall': has_tel, 'hasReviewsOnSite': has_reviews,
         'title': title[:200] or None, 'titleLength': len(title), 'metaDescription': meta_desc[:300] or None,
         'mobileViewport': viewport, 'hasH1': bool(h1 and h1.get_text(strip=True)),
         'copyrightYear': max(years) if years else None, 'copyrightDynamic': dynamic_year,
@@ -666,8 +680,8 @@ ISSUE_TEXT = {
     'INVALID_SSL': 'Invalid or expired SSL certificate',
     'NO_HTTPS_REDIRECT': 'HTTP version does not redirect to HTTPS',
     'NOT_MOBILE_FRIENDLY': 'No mobile viewport (not set up for phones)',
-    'VERY_SLOW': 'Very slow homepage (over 6 s)',
-    'SLOW': 'Slow homepage (over 3 s)',
+    'VERY_SLOW': 'Very slow homepage (over 5 s)',
+    'SLOW': 'Slow homepage (over 2.5 s)',
     'HEAVY_PAGE': 'Heavy homepage HTML (over 1.5 MB)',
     'MISSING_TITLE': 'Missing or very short page title',
     'MISSING_META_DESCRIPTION': 'Missing meta description',
@@ -683,13 +697,24 @@ ISSUE_TEXT = {
     'NO_EMAIL_ON_SITE': 'No email address on the website',
     'LOW_RATING': 'Low Google rating',
     'FEW_REVIEWS': 'Few Google reviews',
+    'NO_CLICK_TO_CALL': 'No click-to-call phone link on the homepage',
+    'NO_REVIEWS_ON_SITE': 'No reviews or testimonials shown on the homepage',
 }
-POINTS = {'NO_WEBSITE': 100, 'SITE_DOWN': 100, 'SITE_ERROR': 85, 'NO_HTTPS': 20, 'INVALID_SSL': 20, 'NO_HTTPS_REDIRECT': 6,
-          'NOT_MOBILE_FRIENDLY': 18, 'VERY_SLOW': 14, 'SLOW': 8, 'HEAVY_PAGE': 4, 'MISSING_TITLE': 7,
-          'MISSING_META_DESCRIPTION': 5, 'NO_H1': 3, 'OUTDATED_COPYRIGHT': 7, 'NO_ANALYTICS': 8, 'NO_AD_PIXEL': 5,
-          'NO_LEAD_CAPTURE': 10, 'NO_BOOKING': 3, 'NO_LOCAL_SCHEMA': 3, 'NO_SOCIAL_LINKS': 3, 'LEGACY_TECH': 8,
-          'NO_EMAIL_ON_SITE': 2, 'LOW_RATING': 9, 'FEW_REVIEWS': 6}
-SEVERITY = {p: ('high' if v >= 14 else 'medium' if v >= 6 else 'low') for p, v in POINTS.items()}
+# Points per issue (scoring version 2, calibrated 2026-11-14 on 165 real Google LSA advertiser websites).
+# The score is the sum of points for the issues found, capped at 100. Weights reflect how much each gap costs a local
+# business in leads: broken or insecure sites first, then ways to convert a visitor (form, booking, click-to-call),
+# then measurement, speed and search basics, then trust signals. Small nice-to-haves stay at a few points.
+POINTS = {'NO_WEBSITE': 100, 'SITE_DOWN': 100, 'SITE_ERROR': 85,
+          'NO_HTTPS': 30, 'INVALID_SSL': 30, 'NOT_MOBILE_FRIENDLY': 25, 'NO_LEAD_CAPTURE': 25, 'VERY_SLOW': 20,
+          'NO_ANALYTICS': 12, 'LEGACY_TECH': 12, 'LOW_RATING': 12, 'SLOW': 10, 'MISSING_TITLE': 10, 'OUTDATED_COPYRIGHT': 10,
+          'NO_CLICK_TO_CALL': 10, 'NO_HTTPS_REDIRECT': 8, 'MISSING_META_DESCRIPTION': 8, 'NO_LOCAL_SCHEMA': 8, 'FEW_REVIEWS': 8,
+          'NO_BOOKING': 6, 'NO_AD_PIXEL': 6, 'NO_H1': 6, 'NO_REVIEWS_ON_SITE': 6, 'HEAVY_PAGE': 5,
+          'NO_EMAIL_ON_SITE': 4, 'NO_SOCIAL_LINKS': 4}
+SEVERITY = {p: ('high' if v >= 20 else 'medium' if v >= 8 else 'low') for p, v in POINTS.items()}
+# Grade bands on the 0-100 problem score. A = at most one 4-point gap; F = a broken, insecure or lead-losing site.
+GRADE_BANDS = [(4, 'A'), (14, 'B'), (26, 'C'), (38, 'D')]
+SCORING_VERSION = 2
+SLOW_MS, VERY_SLOW_MS = 2500, 5000
 
 
 def collect_issues(c: dict[str, Any], rating: float | None, reviews: int | None, status: str) -> list[str]:
@@ -710,9 +735,9 @@ def collect_issues(c: dict[str, Any], rating: float | None, reviews: int | None,
         if not c.get('mobileViewport'):
             issues.append('NOT_MOBILE_FRIENDLY')
         rt = c.get('responseTimeMs') or 0
-        if rt > 6000:
+        if rt > VERY_SLOW_MS:
             issues.append('VERY_SLOW')
-        elif rt > 3000:
+        elif rt > SLOW_MS:
             issues.append('SLOW')
         if (c.get('pageSizeKb') or 0) > 1500:
             issues.append('HEAVY_PAGE')
@@ -733,6 +758,11 @@ def collect_issues(c: dict[str, Any], rating: float | None, reviews: int | None,
             issues.append('NO_LEAD_CAPTURE')
         elif not c.get('bookingTools'):
             issues.append('NO_BOOKING')
+        # Checks added in scoring version 2. Missing keys (older saved rows) are treated as passed.
+        if c.get('hasClickToCall') is False:
+            issues.append('NO_CLICK_TO_CALL')
+        if c.get('hasReviewsOnSite') is False:
+            issues.append('NO_REVIEWS_ON_SITE')
         if not c.get('hasLocalBusinessSchema'):
             issues.append('NO_LOCAL_SCHEMA')
         if not c.get('hasSocialLinks'):
@@ -748,17 +778,21 @@ def collect_issues(c: dict[str, Any], rating: float | None, reviews: int | None,
     return issues
 
 
+def score_to_grade(s: int) -> str:
+    return next((g for top, g in GRADE_BANDS if s <= top), 'F')
+
+
 def score(issues: list[str]) -> tuple[int, str]:
     s = min(100, sum(POINTS[i] for i in issues))
-    grade = 'A' if s <= 20 else 'B' if s <= 40 else 'C' if s <= 60 else 'D' if s <= 80 else 'F'
-    return s, grade
+    return s, score_to_grade(s)
 
 
 # ---------------------------------------------------------------- pitch
 
 PITCH_ORDER = ['NO_WEBSITE', 'SITE_DOWN', 'SITE_ERROR', 'INVALID_SSL', 'NO_HTTPS', 'NOT_MOBILE_FRIENDLY', 'VERY_SLOW',
-               'NO_LEAD_CAPTURE', 'LOW_RATING', 'OUTDATED_COPYRIGHT', 'LEGACY_TECH', 'SLOW', 'FEW_REVIEWS', 'NO_ANALYTICS',
-               'MISSING_META_DESCRIPTION', 'MISSING_TITLE', 'NO_BOOKING', 'NO_AD_PIXEL', 'NO_LOCAL_SCHEMA', 'NO_HTTPS_REDIRECT']
+               'NO_LEAD_CAPTURE', 'LOW_RATING', 'OUTDATED_COPYRIGHT', 'LEGACY_TECH', 'SLOW', 'NO_CLICK_TO_CALL', 'FEW_REVIEWS',
+               'NO_ANALYTICS', 'MISSING_META_DESCRIPTION', 'MISSING_TITLE', 'NO_REVIEWS_ON_SITE', 'NO_BOOKING', 'NO_AD_PIXEL',
+               'NO_LOCAL_SCHEMA', 'NO_HTTPS_REDIRECT']
 
 
 def first_name(full: str | None) -> str | None:
@@ -816,6 +850,10 @@ def pitch(issues: list[str], ctx: dict[str, Any]) -> tuple[str, str, str | None]
                                      f"{hi}, {dom}'s homepage has no meta description, so Google picks a random snippet when it shows you in search results."),
         'MISSING_TITLE': (f'{dom} has no proper page title. Pitch local SEO basics.',
                           f"{hi}, {dom}'s homepage is missing a proper page title, which is one of the first things Google uses to rank a {cat}{where}."),
+        'NO_CLICK_TO_CALL': (f'{dom} has no tap-to-call phone link, so mobile visitors have to copy the number by hand. Pitch a mobile conversion fix.',
+                             f"{hi}, on my phone there was no tap-to-call button on {dom}, so calling you takes a few extra steps most visitors won't bother with."),
+        'NO_REVIEWS_ON_SITE': (f'{dom} shows no reviews or testimonials on the homepage. Pitch a reviews widget and social proof.',
+                               f"{hi}, {dom} doesn't show any customer reviews or testimonials, and that is often where new visitors decide whether to call."),
         'NO_BOOKING': (f'{dom} has no online booking. Pitch booking integration.',
                        f"{hi}, I noticed there's no way to book online on {dom}. Many customers now expect to grab a slot without calling."),
         'NO_AD_PIXEL': (f'No ad pixel on {dom}, so no retargeting or conversion tracking. Pitch paid ads setup.',

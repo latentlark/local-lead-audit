@@ -17,8 +17,8 @@
 ```json
 {
   "businessName": "Example Family Dentistry",
-  "problemScore": 26,
-  "grade": "B",
+  "problemScore": 51,
+  "grade": "F",
   "topIssues": ["No analytics installed", "No retargeting/ad pixel", "No booking, contact form or chat"],
   "ownerName": "Dr. Jane Smith",
   "emailOpener": "Hi Dr. Smith, I couldn't find a way to book or send a request on examplefamilydentistry.com. …"
@@ -139,8 +139,8 @@ One row per business. Example (shortened):
   "rating": 4.9,
   "reviewCount": 120,
   "status": "ok",
-  "problemScore": 26,
-  "grade": "B",
+  "problemScore": 51,
+  "grade": "F",
   "topIssues": ["No analytics installed", "No retargeting/ad pixel", "No booking, contact form or chat"],
   "issueCodes": ["NO_ANALYTICS", "NO_AD_PIXEL", "NO_LEAD_CAPTURE", "NO_LOCAL_SCHEMA"],
   "ownerName": "Dr. Jane Smith",
@@ -166,9 +166,29 @@ The run also saves a **SUMMARY** record in the key-value store: counts by status
 - The Actor watches the run timeout. About 60 seconds before it, it stops starting new sites; unfinished ones are saved as `skippedTimeLimit` rows (free), and the run still ends **SUCCEEDED** with everything audited so far.
 - Each site has a 60 second cap (homepage, up to 3 subpages and the MX check), so one slow site cannot hold up the run.
 
-### problemScore
+### problemScore and grade (scoring v2, November 2026)
 
-Points per issue, capped at 100: no website / site down 100, broken site 85, no HTTPS or invalid SSL 20, not mobile-friendly 18, very slow (>6 s) 14, no booking/form/chat 10, low Google rating (<4.0) 9, no analytics 8, slow (>3 s) 8, outdated © year 7, missing title 7, few reviews 6, no http→https redirect 6, no ad pixel 5, missing meta description 5, heavy page 4, and smaller items (no H1, no LocalBusiness schema, no social links, no online booking) 2–3. Grades: A ≤20, B ≤40, C ≤60, D ≤80, F >80.
+Every issue code is worth a fixed number of points. problemScore is the sum, capped at 100, so the score and the grade always trace back to the issue codes in the row.
+
+| Points | Issue codes |
+|---|---|
+| 100 | NO_WEBSITE, SITE_DOWN |
+| 85 | SITE_ERROR |
+| 30 | NO_HTTPS, INVALID_SSL |
+| 25 | NOT_MOBILE_FRIENDLY, NO_LEAD_CAPTURE (no booking, contact form or chat) |
+| 20 | VERY_SLOW (homepage over 5 s) |
+| 12 | NO_ANALYTICS, LEGACY_TECH, LOW_RATING (Google rating under 4.0) |
+| 10 | SLOW (over 2.5 s), MISSING_TITLE, OUTDATED_COPYRIGHT (2+ years old), NO_CLICK_TO_CALL (no tel: link) |
+| 8 | NO_HTTPS_REDIRECT, MISSING_META_DESCRIPTION, NO_LOCAL_SCHEMA, FEW_REVIEWS (under 20) |
+| 6 | NO_BOOKING (has a form but no online booking), NO_AD_PIXEL, NO_H1, NO_REVIEWS_ON_SITE (no reviews or testimonials shown) |
+| 5 | HEAVY_PAGE (over 1.5 MB of HTML) |
+| 4 | NO_EMAIL_ON_SITE, NO_SOCIAL_LINKS |
+
+Grades: **A** 0 to 4 (at most one 4-point gap), **B** 5 to 14, **C** 15 to 26, **D** 27 to 38, **F** over 38. A site with no way to send a request (25 points) is a C on its own; add no analytics and no click-to-call and it is an F.
+
+The weights were calibrated on 165 real websites of Google Local Services advertisers (Austin, November 2026). On that set the grades came out A 14%, B 37%, C 30%, D 7%, F 13%. The previous weights gave 87% A, because modern sites all pass HTTPS and mobile checks and the remaining gaps were only worth 2 to 5 points each.
+
+Speed is only flagged when it is confirmed: a homepage that looks slow on the first fetch is timed again in a quiet worker thread and the faster time is used, so a busy run never makes a website look slow. `checks.responseTimeFirstMs` keeps the first timing when a re-check happened.
 
 ## Pricing
 
