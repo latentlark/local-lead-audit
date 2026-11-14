@@ -1,0 +1,294 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "type": "object",
+    "properties": {
+      "businessName": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "domain": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "website": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "inputWebsite": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "source": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "category": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "city": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "address": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "rating": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "reviewCount": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "mapsUrl": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "placeId": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "status": {
+        "type": "string"
+      },
+      "statusDetail": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "httpStatus": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "problemScore": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "grade": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "primaryIssue": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "issues": {
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "issueCodes": {
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "topIssues": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "ownerName": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "ownerTitle": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "people": {
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "primaryEmail": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "emailType": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "emailMxValid": {
+        "type": [
+          "boolean",
+          "null"
+        ]
+      },
+      "emails": {
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "phones": {
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "socials": {
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "checks": {
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "pagesCrawled": {
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "pitchAngle": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "emailOpener": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "auditedAt": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "views": {
+    "overview": {
+      "title": "Leads",
+      "transformation": {
+        "fields": [
+          "businessName",
+          "website",
+          "problemScore",
+          "grade",
+          "topIssues",
+          "ownerName",
+          "primaryEmail",
+          "phones",
+          "rating",
+          "reviewCount",
+          "pitchAngle",
+          "emailOpener",
+          "status"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "businessName": {
+            "label": "Business",
+            "format": "text"
+          },
+          "website": {
+            "label": "Website",
+            "format": "link"
+          },
+          "problemScore": {
+            "label": "Problem score",
+            "format": "number"
+          },
+          "grade": {
+            "label": "Grade",
+            "format": "text"
+          },
+          "topIssues": {
+            "label": "Top issues",
+            "format": "text"
+          },
+          "ownerName": {
+            "label": "Owner / contact",
+            "format": "text"
+          },
+          "primaryEmail": {
+            "label": "Email",
+            "format": "text"
+          },
+          "phones": {
+            "label": "Phones",
+            "format": "array"
+          },
+          "rating": {
+            "label": "Rating",
+            "format": "number"
+          },
+          "reviewCount": {
+            "label": "Reviews",
+            "format": "number"
+          },
+          "pitchAngle": {
+            "label": "Pitch angle",
+            "format": "text"
+          },
+          "emailOpener": {
+            "label": "Email opener",
+            "format": "text"
+          },
+          "status": {
+            "label": "Status",
+            "format": "text"
+          }
+        }
+      }
+    }
+  }
+}

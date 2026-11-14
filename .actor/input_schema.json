@@ -1,0 +1,106 @@
+{
+  "title": "Local Lead Audit input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "websites": {
+      "title": "Websites",
+      "type": "array",
+      "editor": "stringList",
+      "sectionCaption": "Leads to audit",
+      "description": "Business websites or domains, one per line (e.g. joespizzanyc.com). You can also write \"Business Name | domain.com\". Use this or a Google Maps dataset below (or both).",
+      "prefill": [
+        "https://www.joespizzanyc.com",
+        "https://www.levainbakery.com"
+      ]
+    },
+    "mapsDatasetId": {
+      "title": "Google Maps dataset",
+      "type": "string",
+      "editor": "resourcePicker",
+      "description": "Pick (or paste the ID of) the dataset from a Google Maps scraper run, e.g. compass/crawler-google-places. Uses title, website, phone, rating, review count, category, city and emails. Read-only access to just this dataset.",
+      "resourceType": "dataset",
+      "resourcePermissions": [
+        "READ"
+      ]
+    },
+    "businessNames": {
+      "title": "Business names (optional)",
+      "type": "array",
+      "editor": "stringList",
+      "description": "Optional names matching the Websites list line by line. Used in the pitch and email opener."
+    },
+    "maxBusinesses": {
+      "title": "Max businesses",
+      "type": "integer",
+      "editor": "number",
+      "minimum": 1,
+      "maximum": 100000,
+      "default": 100,
+      "prefill": 20,
+      "description": "Stop after auditing this many businesses (after de-duplication by domain)."
+    },
+    "includePitch": {
+      "title": "Generate pitch angle and email opener",
+      "type": "boolean",
+      "default": true,
+      "sectionCaption": "Options",
+      "description": "Add a pitchAngle and a one-line emailOpener for the biggest problem found. Template-based, no AI cost."
+    },
+    "includeNoWebsite": {
+      "title": "Include Maps businesses without a website",
+      "type": "boolean",
+      "default": true,
+      "description": "Output Google Maps rows that have no website (or only a Facebook page) as top-priority 'no website' leads. They count as an audit."
+    },
+    "onlyNew": {
+      "title": "Only new businesses (skip ones audited before)",
+      "type": "boolean",
+      "default": false,
+      "description": "Remember audited domains between runs and skip them. Handy for scheduled runs on a growing lead list. Skipped businesses are not charged."
+    },
+    "monitorKey": {
+      "title": "Memory key for 'only new'",
+      "type": "string",
+      "editor": "textfield",
+      "description": "Name of the memory used by 'only new'. Use different keys for different campaigns. Defaults to the Maps dataset ID or 'default'."
+    },
+    "maxSubpages": {
+      "title": "Extra pages per site",
+      "type": "integer",
+      "editor": "number",
+      "minimum": 0,
+      "maximum": 5,
+      "default": 3,
+      "description": "How many About / Team / Contact pages to open per site to find the owner and emails. 0 = homepage only (faster)."
+    },
+    "checkMx": {
+      "title": "Check email domain MX",
+      "type": "boolean",
+      "default": true,
+      "description": "Light DNS check that the primary email's domain accepts mail. Not a full mailbox verification."
+    },
+    "maxConcurrency": {
+      "title": "Max concurrency",
+      "type": "integer",
+      "editor": "number",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 20,
+      "description": "Upper bound for websites audited in parallel. The Actor lowers it automatically to about 1 site per 40 MB of run memory, because parsing pages is CPU bound. The default 1024 MB handles 100+ sites in a few minutes."
+    },
+    "proxyFallback": {
+      "title": "Datacenter proxy fallback for blocked sites",
+      "type": "boolean",
+      "default": true,
+      "description": "If a site blocks plain requests, retry once through Apify datacenter proxy. Never uses residential proxy unless you set it below."
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "editor": "proxy",
+      "description": "Optional. Leave empty for direct requests (recommended). If set, all requests use this proxy."
+    }
+  },
+  "required": []
+}

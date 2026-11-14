@@ -1,0 +1,16 @@
+{
+  "actorSpecification": 1,
+  "name": "local-lead-audit",
+  "title": "Google Maps No-Website Leads (Audit & Pitch)",
+  "description": "Find local businesses with no website or a weak one from Google Maps data. Get a 0-100 problem score, SSL/mobile/speed/SEO/pixel/booking checks, owner name, emails, phones, socials, plus a ready pitch angle and cold email opener. No AI fees.",
+  "version": "0.1",
+  "buildTag": "latest",
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "output": "./output_schema.json",
+  "dockerfile": "../Dockerfile",
+  "readme": "../README.md",
+  "defaultMemoryMbytes": 1024
+}

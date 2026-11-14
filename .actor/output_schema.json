@@ -1,0 +1,19 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "Audited local business leads",
+  "description": "One dataset item per business.",
+  "properties": {
+    "overview": {
+      "type": "string",
+      "title": "Leads",
+      "description": "Score, grade, top issues, owner, email, phone, pitch angle and email opener per business.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?view=overview"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Run summary",
+      "description": "Counts by status and grade, charged events and requests.",
+      "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/SUMMARY"
+    }
+  }
+}
