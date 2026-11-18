@@ -56,7 +56,8 @@ No Maps data? Paste website URLs into **Websites** instead (`Joe's Plumbing | jo
 This Actor doesn't scrape Google Maps itself; it audits the output of a Maps scraper.
 
 - **One-off:** run a Google Maps scraper (e.g. `compass/crawler-google-places`), then pick its dataset in **Google Maps dataset** here.
-- **Automatic chain:** in the Maps scraper's **Integrations** tab, add this Actor with `{"mapsDatasetId": "{{resource.defaultDatasetId}}"}` so every Maps run is audited automatically.
+- **From Google Local Services Ads:** run [Google Local Services Ads Scraper](https://apify.com/latentlark/google-local-services-ads) for your trades and ZIPs, then set **Google Maps dataset** to that run's dataset. LSA rows already use `title`, `website`, `phone`, `categoryName`, `city`, `rating` and `reviewCount`. Turn off **Include Maps businesses without a website** if you only want sites that can be audited.
+- **Automatic chain:** in the Maps scraper's or the LSA Actor's **Integrations** tab, add this Actor with `{"mapsDatasetId": "{{resource.defaultDatasetId}}"}` so every run is audited automatically.
 - **To Google Sheets:** chain [Google Sheets Export](https://apify.com/latentlark/sheets-export) after it.
 - **Any tool via API:** results are a normal Apify dataset, so n8n, Make, Zapier or your own code can read them through the Apify API or integrations.
 
@@ -222,7 +223,24 @@ Blocked sites, errors, duplicates, permanently closed listings and already-audit
 
 **Can you set this up for me?** Yes, see the done-for-you line at the top of this page.
 
+**Can I audit Google Local Services Ads leads, not just Maps?** Yes. Run [Google Local Services Ads Scraper](https://apify.com/latentlark/google-local-services-ads) first, then set `mapsDatasetId` to that run's dataset. Providers with no website can be skipped with `includeNoWebsite: false`.
+
+**Why did almost every site used to get an A?** Scoring v2 (November 2026) gives each issue a fixed number of points so the grade matches the real gaps. On 165 websites of Google Local Services advertisers in Austin, the grades came out A 14%, B 37%, C 30%, D 7%, F 13%. The previous weights gave 87% A, because modern sites already pass HTTPS and mobile checks and the leftover gaps were only worth 2 to 5 points each.
+
+**Are blocked or failed sites charged?** No. `blocked`, `error`, `invalidInput`, `skippedTimeLimit`, duplicates, permanently closed listings and already-audited businesses (`onlyNew`) are free. You pay the $0.005 start plus $0.004 per business actually audited, and $0.002 extra when an owner name or website email is found (free-tier prices; Bronze / Silver / Gold pay 10 / 20 / 30% less).
+
+**How long does 100 sites take?** In our tests about 150 websites took about 3 minutes at the default 1024 MB, about 4 minutes at 512 MB, and about 9 to 10 minutes at 256 MB. The start fee is the same for any memory up to 1 GB.
+
+**What does problemScore 100 mean?** The business has no website (or only a Facebook page) or the site was down. Those are the highest-priority leads. A site with no way to send a request is 25 points (a C on its own); add no analytics and no click-to-call and it becomes an F (over 38).
+
+**How should I sort a pitch list?** Sort by `problemScore` descending, or by `grade` with F first. Grades: A 0 to 4, B 5 to 14, C 15 to 26, D 27 to 38, F over 38. Agencies usually call D and F first, then C.
+
+**Why is ownerName often empty?** Owner names are taken from page text and structured data only. Small sites often don't name the owner. `contactName` then holds the best other named person when there is one. Emails are only those published on the site; the MX check only confirms the domain accepts mail.
+
+**Do I need a Google API key?** No. This Actor does not scrape Google Maps itself and does not use the Google Places API. You point it at a Maps or LSA dataset you already have, or paste websites.
+
 ## More from LatentLark
+- [Google Local Services Ads Scraper (LSA Leads + Website)](https://apify.com/latentlark/google-local-services-ads): which plumbers, roofers, lawyers and other pros already pay for Google Local Services Ads in a city or ZIP. Feed that dataset into this Actor to audit the advertisers' websites.
 - [Creator Commerce Competitor Finder (LTK & ShopMy)](https://apify.com/latentlark/creator-commerce-competitor-finder): find which creators promote any brand on LTK and ShopMy, with clicks, product counts and social links, plus new-affiliate alerts. No login.
 - [Google Maps Rank Tracker (Geo-Grid Heatmap)](https://apify.com/latentlark/google-maps-rank-tracker): see where a business ranks on Google Maps across a city grid, a strong visual for the local-SEO pitch.
 - [Google Sheets Export & Import (No OAuth)](https://apify.com/latentlark/sheets-export): send these leads to a Google Sheet on a schedule without Google login or expiring tokens.
